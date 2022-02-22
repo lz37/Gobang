@@ -5,9 +5,9 @@
  *
  * @LastEditors: 零泽
  *
- * @LastEditTime: 2022-02-22 21:19:52
+ * @LastEditTime: 2022-02-22 22:25:05
  *
- * @FilePath: /Gobang/src/GUI/Gobang.java
+ * @FilePath: /Gobang/src/GUI/SinglePlay.java
  *
  * @Description:
  */
@@ -26,7 +26,6 @@ import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.function.Predicate;
-import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -48,7 +47,7 @@ import javafx.util.Pair;
 import javafx.scene.paint.Color;
 
 // extends为继承
-public class Gobang extends Application {
+public class SinglePlay extends Stage {
 	private static int padding = 50;// 线与线之间距离
 	private static int margin = 30;// 边线距离棋盘的距离
 	private static int BottomMargin = 2 * margin;// 下边线距离棋盘的额外距离
@@ -62,6 +61,127 @@ public class Gobang extends Application {
 	private Stage stage = null;
 	private boolean isReplay = false;
 	private int replayPos = 0;
+
+	public SinglePlay() {
+		this.stage = this;
+		// 创建画板
+		this.pane = getPane();
+		// 落子给画板
+		moveInChess();
+		Scene scene = new Scene(pane, side, side + BottomMargin);// 创建场景对象，将画布导入场景
+		stage.setScene(scene);// 窗口调用场景
+		stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+			@Override
+			public void handle(WindowEvent event) {
+				Alert alert = new Alert(AlertType.CONFIRMATION);
+				// 设置文字说明
+				alert.setTitle("退出");
+				alert.setHeaderText("确认：");
+				alert.setContentText("确定要退出吗？");
+				// 展示弹框并获得结果
+				Optional<ButtonType> result = alert.showAndWait();
+				if (result.isPresent() && result.get() == ButtonType.OK) {
+					stage.close();
+					System.exit(0);
+				} else {
+					event.consume();
+				}
+			}
+
+		});
+	}
+
+	private boolean isHas(int x, int y) {
+		return chesses[y][x] != null;
+	}
+
+	private boolean isWin() {
+		if (record.empty() || isReplay)
+			return false;
+		int x = (record.lastElement().getKey() - margin) / padding;
+		int y = (record.lastElement().getValue() - margin) / padding;
+		// 横向判断
+		int left2Right = 1;
+		for (int i = 1; i <= 4 && x - i >= 0; i++) {
+			if (chesses[y][x - i] == null)
+				break;
+			else if (!chesses[y][x - i].getColor().equals(chesses[y][x].getColor()))
+				break;
+			else
+				left2Right++;
+		}
+		for (int i = 1; i <= 4 && x + i < lineCount; i++) {
+			if (chesses[y][x + i] == null)
+				break;
+			else if (!chesses[y][x + i].getColor().equals(chesses[y][x].getColor()))
+				break;
+			else
+				left2Right++;
+		}
+		if (left2Right >= 5)
+			return true;
+		// 纵向判断
+		int top2Bottom = 1;
+		for (int i = 1; i <= 4 && y - i >= 0; i++) {
+			if (chesses[y - i][x] == null)
+				break;
+			else if (!chesses[y - i][x].getColor().equals(chesses[y][x].getColor()))
+				break;
+			else
+				top2Bottom++;
+		}
+		for (int i = 1; i <= 4 && y + i < lineCount; i++) {
+			if (chesses[y + i][x] == null)
+				break;
+			else if (!chesses[y + i][x].getColor().equals(chesses[y][x].getColor()))
+				break;
+			else
+				top2Bottom++;
+		}
+		if (top2Bottom >= 5)
+			return true;
+		// 斜向判断
+		int leftTop2RightBottom = 1;
+		for (int i = 1; i <= 4 && y - i >= 0 && x - i >= 0; i++) {
+			if (chesses[y - i][x - i] == null)
+				break;
+			else if (!chesses[y - i][x - i].getColor().equals(chesses[y][x].getColor()))
+				break;
+			else
+				leftTop2RightBottom++;
+		}
+		for (int i = 1; i <= 4 && y + i < lineCount && x + i < lineCount; i++) {
+			if (chesses[y + i][x + i] == null)
+				break;
+			else if (!chesses[y + i][x + i].getColor().equals(chesses[y][x].getColor()))
+				break;
+			else
+				leftTop2RightBottom++;
+		}
+		if (leftTop2RightBottom >= 5)
+			return true;
+		// 斜向判断
+		int rightTop2LeftBottom = 0;
+		for (int i = 1; i <= 4 && y - i >= 0 && x + i < lineCount; i++) {
+			if (chesses[y - i][x + i] == null)
+				break;
+			else if (!chesses[y - i][x + i].getColor().equals(chesses[y][x].getColor()))
+				break;
+			else
+				rightTop2LeftBottom++;
+		}
+		for (int i = 1; i <= 4 && y + i < lineCount && x - i >= 0; i++) {
+			if (chesses[y + i][x - i] == null)
+				break;
+			else if (!chesses[y + i][x - i].getColor().equals(chesses[y][x].getColor()))
+				break;
+			else
+				rightTop2LeftBottom++;
+		}
+		if (rightTop2LeftBottom >= 5)
+			return true;
+		return false;
+	}
 
 	// 创建棋盘
 	private Pane getPane() {
@@ -482,133 +602,6 @@ public class Gobang extends Application {
 			chess = new Chess((int) _x, (int) _y, Color.BLACK);
 		}
 		chesses[(int) _y][(int) _x] = chess;
-	}
-
-	@Override
-	public void start(Stage stage) throws Exception {
-		this.stage = stage;
-		// 创建画板
-		this.pane = getPane();
-		// 落子给画板
-		moveInChess();
-		Scene scene = new Scene(pane, side, side + BottomMargin);// 创建场景对象，将画布导入场景
-		stage.setScene(scene);// 窗口调用场景
-		stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
-			@Override
-			public void handle(WindowEvent event) {
-				Alert alert = new Alert(AlertType.CONFIRMATION);
-				// 设置文字说明
-				alert.setTitle("退出");
-				alert.setHeaderText("确认：");
-				alert.setContentText("确定要退出吗？");
-				// 展示弹框并获得结果
-				Optional<ButtonType> result = alert.showAndWait();
-				if (result.isPresent() && result.get() == ButtonType.OK) {
-					stage.close();
-					System.exit(0);
-				} else {
-					event.consume();
-				}
-			}
-
-		});
-		stage.show();// 展示舞台
-	}
-
-	private boolean isHas(int x, int y) {
-		return chesses[y][x] != null;
-	}
-
-	private boolean isWin() {
-		if (record.empty() || isReplay)
-			return false;
-		int x = (record.lastElement().getKey() - margin) / padding;
-		int y = (record.lastElement().getValue() - margin) / padding;
-		// 横向判断
-		int left2Right = 1;
-		for (int i = 1; i <= 4 && x - i >= 0; i++) {
-			if (chesses[y][x - i] == null)
-				break;
-			else if (!chesses[y][x - i].getColor().equals(chesses[y][x].getColor()))
-				break;
-			else
-				left2Right++;
-		}
-		for (int i = 1; i <= 4 && x + i < lineCount; i++) {
-			if (chesses[y][x + i] == null)
-				break;
-			else if (!chesses[y][x + i].getColor().equals(chesses[y][x].getColor()))
-				break;
-			else
-				left2Right++;
-		}
-		if (left2Right >= 5)
-			return true;
-		// 纵向判断
-		int top2Bottom = 1;
-		for (int i = 1; i <= 4 && y - i >= 0; i++) {
-			if (chesses[y - i][x] == null)
-				break;
-			else if (!chesses[y - i][x].getColor().equals(chesses[y][x].getColor()))
-				break;
-			else
-				top2Bottom++;
-		}
-		for (int i = 1; i <= 4 && y + i < lineCount; i++) {
-			if (chesses[y + i][x] == null)
-				break;
-			else if (!chesses[y + i][x].getColor().equals(chesses[y][x].getColor()))
-				break;
-			else
-				top2Bottom++;
-		}
-		if (top2Bottom >= 5)
-			return true;
-		// 斜向判断
-		int leftTop2RightBottom = 1;
-		for (int i = 1; i <= 4 && y - i >= 0 && x - i >= 0; i++) {
-			if (chesses[y - i][x - i] == null)
-				break;
-			else if (!chesses[y - i][x - i].getColor().equals(chesses[y][x].getColor()))
-				break;
-			else
-				leftTop2RightBottom++;
-		}
-		for (int i = 1; i <= 4 && y + i < lineCount && x + i < lineCount; i++) {
-			if (chesses[y + i][x + i] == null)
-				break;
-			else if (!chesses[y + i][x + i].getColor().equals(chesses[y][x].getColor()))
-				break;
-			else
-				leftTop2RightBottom++;
-		}
-		if (leftTop2RightBottom >= 5)
-			return true;
-		// 斜向判断
-		int rightTop2LeftBottom = 0;
-		for (int i = 1; i <= 4 && y - i >= 0 && x + i < lineCount; i++) {
-			if (chesses[y - i][x + i] == null)
-				break;
-			else if (!chesses[y - i][x + i].getColor().equals(chesses[y][x].getColor()))
-				break;
-			else
-				rightTop2LeftBottom++;
-		}
-		for (int i = 1; i <= 4 && y + i < lineCount && x - i >= 0; i++) {
-			if (chesses[y + i][x - i] == null)
-				break;
-			else if (!chesses[y + i][x - i].getColor().equals(chesses[y][x].getColor()))
-				break;
-			else
-				rightTop2LeftBottom++;
-		}
-		if (rightTop2LeftBottom >= 5)
-			return true;
-		return false;
-	}
-
-	public static void main(String[] args) {
-		launch(args);
 	}
 
 }
