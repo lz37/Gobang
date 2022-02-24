@@ -3,8 +3,8 @@ package GUI;
  * @Author: 零泽
  * @Date: 2022/02/10 21:10:22
  * @LastEditors: 零泽
- * @LastEditTime: 2022/02/16 19:56:22
- * @FilePath: \Gobang\src\GUI\Chess.java
+ * @LastEditTime: 2022-02-23 21:25:21
+ * @FilePath: /Gobang/src/GUI/Chess.java
  * @Description:
  */
 
@@ -45,12 +45,4 @@ public class Chess {
 		this.color = color;
 	}
 
-	@Override
-	public String toString() {
-		return "{" +
-				" x='" + getX() + "'" +
-				", y='" + getY() + "'" +
-				", color='" + getColor() + "'" +
-				"}";
-	}
 }

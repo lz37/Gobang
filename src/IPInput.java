@@ -3,13 +3,21 @@
  * @FilePath: /Gobang/src/IPInput.java
  * @Author: 零泽
  * @Date: 2022-02-22 22:04:20
- * @LastEditTime: 2022-02-22 23:32:50
+ * @LastEditTime: 2022-02-24 23:23:57
  * @LastEditors: 零泽
  * @Description: 
  */
 
+import java.io.ObjectInputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Optional;
+
+import GUI.ChessMessage;
+import GUI.Global;
+import GUI.OnlinePlay;
 import javafx.scene.control.ButtonType;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
@@ -65,13 +73,13 @@ public class IPInput extends Stage {
     myIPLabel = new Label("我的IP:");
     myIPLabel.setLayoutX(labelX);
     myIPLabel.setLayoutY(margin / 2);
-    myPortLabel = new Label("我的IP:");
+    myPortLabel = new Label("我的端口:");
     myPortLabel.setLayoutX(labelX);
     myPortLabel.setLayoutY(myIPLabel.getLayoutY() + margin);
     oppositeIPLabel = new Label("对方的IP:");
     oppositeIPLabel.setLayoutX(labelX);
     oppositeIPLabel.setLayoutY(myPortLabel.getLayoutY() + margin);
-    oppositePortLabel = new Label("对方的IP:");
+    oppositePortLabel = new Label("对方的端口:");
     oppositePortLabel.setLayoutX(labelX);
     oppositePortLabel.setLayoutY(oppositeIPLabel.getLayoutY() + margin);
     pane.getChildren().addAll(myIPLabel, myPortLabel, oppositeIPLabel, oppositePortLabel);
@@ -93,6 +101,7 @@ public class IPInput extends Stage {
     oppositePortInput.setLayoutY(oppositePortLabel.getLayoutY());
     oppositePortInput.setPrefWidth(textFieldLength);
     pane.getChildren().addAll(myIPInput, myPortInput, oppositeIPInput, oppositePortInput);
+    // 设按钮
     OK = new Button("确认");
     OK.setPrefWidth(textFieldLength / 2);
     OK.setLayoutX(labelX);
@@ -100,7 +109,57 @@ public class IPInput extends Stage {
     OK.setOnAction(new EventHandler<ActionEvent>() {
       @Override
       public void handle(ActionEvent event) {
-        // TODO:写完网络对战，计划OnlinePlay的构造函数参数设置为文本框的四个
+        // Global.myIP = myIPInput.getText();
+        // Global.myPort = Integer.parseInt(myPortInput.getText());
+        // Global.oppositeIP = oppositeIPInput.getText();
+        // Global.oppositePort = Integer.parseInt(oppositePortInput.getText());
+
+        Global.myIP = "localhost";
+        Global.myPort = Integer.parseInt(myPortInput.getText());
+        Global.oppositeIP = "localhost";
+        Global.oppositePort = Integer.parseInt(oppositePortInput.getText());
+        OnlinePlay onlinePlay = new OnlinePlay();
+        onlinePlay.show();
+        new Thread() {
+          @Override
+          public void run() {
+            try {
+              ServerSocket serverSocket = new ServerSocket(Global.myPort);
+              while (true) {
+                Socket socket = serverSocket.accept();
+                ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
+                Object obj = input.readObject();
+                if (obj instanceof ChessMessage) {
+                  // 如果是棋子
+                  ChessMessage chessMessage = (ChessMessage) obj;
+                  onlinePlay.pushRecord(chessMessage.getX(), chessMessage.getY());
+                  onlinePlay.setCanPlace(true);
+                  onlinePlay.onlinePlace(chessMessage.getX(), chessMessage.getY());
+
+                  if (onlinePlay.isWin()) {
+                    // 弹框
+                    Alert alert = new Alert(AlertType.INFORMATION);
+                    // 设置文字说明
+                    alert.setTitle("胜利");
+                    alert.setHeaderText("恭喜！");
+                    alert.setContentText((onlinePlay.getRecordSize() % 2 == 1 ? "黑方" : "白方") +
+                        "胜利！");
+                    // 展示弹框
+                    alert.show();
+                    onlinePlay.setIsWin(true);
+                    return;
+                  }
+                } else {
+                  // 如果不是棋子
+
+                }
+
+              }
+            } catch (Exception e) {
+              e.printStackTrace();
+            }
+          };
+        }.start();
         IPInput.this.close();
       }
     });
