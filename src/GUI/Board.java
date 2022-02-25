@@ -5,7 +5,7 @@
  *
  * @LastEditors: 零泽
  *
- * @LastEditTime: 2022-02-24 23:45:06
+ * @LastEditTime: 2022-02-25 13:13:31
  *
  * @FilePath: /Gobang/src/GUI/Board.java
  *
@@ -13,15 +13,12 @@
  */
 package GUI;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Optional;
 import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -30,11 +27,8 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.Pane;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
@@ -49,15 +43,15 @@ import javafx.scene.paint.Color;
 public abstract class Board extends Stage {
 	static int padding = 50;// 线与线之间距离
 	static int margin = 30;// 边线距离棋盘的距离
-	private static int BottomMargin = 2 * margin;// 下边线距离棋盘的额外距离
-	private static int starRadius = 5;// 星的半径
-	private static int lineCount = 15;// 纵横线条数
+	protected static int BottomMargin = 2 * margin;// 下边线距离棋盘的额外距离
+	static int starRadius = 5;// 星的半径
+	static int lineCount = 15;// 纵横线条数
 	int side = (lineCount - 1) * padding + 2 * margin;
 	protected Pane pane = null;// 画板
 	protected Chess[][] chesses = new Chess[lineCount][lineCount];
 	Stack<Pair<Integer, Integer>> record = new Stack<Pair<Integer, Integer>>();
 	boolean isWin = false;
-	private Stage stage = null;
+	Stage stage = null;
 	boolean isReplay = false;
 	private int replayPos = 0;
 
@@ -67,33 +61,25 @@ public abstract class Board extends Stage {
 		this.pane = getPane();
 		// 对战功能
 		fight();
-		Scene scene = new Scene(pane, side, side + BottomMargin);// 创建场景对象，将画布导入场景
-		stage.setScene(scene);// 窗口调用场景
-		stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
-			@Override
-			public void handle(WindowEvent event) {
-				Alert alert = new Alert(AlertType.CONFIRMATION);
-				// 设置文字说明
-				alert.setTitle("退出");
-				alert.setHeaderText("确认：");
-				alert.setContentText("确定要退出吗？");
-				// 展示弹框并获得结果
-				Optional<ButtonType> result = alert.showAndWait();
-				if (result.isPresent() && result.get() == ButtonType.OK) {
-					stage.close();
-					System.exit(0);
-				} else {
-					event.consume();
-				}
-			}
+		// 创建场景对象，将画布导入场景
+		Scene scene = new Scene(pane, side, side + BottomMargin);
+		// 窗口调用场景
+		stage.setScene(scene);
+		// 设置退出事件
+		setExit();
 
-		});
 	}
 
-	abstract void fight();
+	protected abstract void setExit();
+
+	protected abstract void fight();
 
 	boolean isHas(int x, int y) {
 		return chesses[y][x] != null;
+	}
+
+	public boolean getIsWin() {
+		return this.isWin;
 	}
 
 	public boolean isWin() {
@@ -310,72 +296,7 @@ public abstract class Board extends Stage {
 		return pane;
 	}
 
-	private Button getReplayButton(Button next, Button last) {
-		// 添加按钮对象
-		Button replayButton = new Button("打谱");
-		// 设置按钮大小
-		replayButton.setPrefSize(2 * padding, BottomMargin - margin);
-		// 设置位置
-		replayButton.setLayoutX(margin + 9 * padding);
-		replayButton.setLayoutY(side);
-		replayButton.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				isReplay = !isReplay;
-				if (isReplay) {
-					record.clear();
-					isWin = false;
-					chesses = new Chess[lineCount][lineCount];
-
-					pane.getChildren().removeIf(new Predicate<Object>() {
-						@Override
-						public boolean test(Object t) {
-							if (t instanceof Circle) {
-								Circle tmp = (Circle) t;
-								if (tmp.getRadius() > starRadius)
-									return true;
-								else
-									return false;
-							} else
-								return false;
-						}
-					});
-					// 创建保存框对象
-					FileChooser fileChooser = new FileChooser();
-					// 展示
-					File file = fileChooser.showOpenDialog(stage);
-					BufferedReader br = null;
-					try {
-						br = new BufferedReader(new FileReader(file));
-						String line = null;
-						while ((line = br.readLine()) != null) {
-							String[] XY = line.split("=");
-							record.push(new Pair<Integer, Integer>(Integer.parseInt(XY[0]), Integer.parseInt(XY[1])));
-						}
-					} catch (Exception e) {
-						e.printStackTrace();
-					} finally {
-						try {
-							br.close();
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-					}
-					pane.getChildren().addAll(next, last);
-				} else {
-					pane.getChildren().removeIf(new Predicate<Object>() {
-						@Override
-						public boolean test(Object t) {
-							return t.equals(next) || t.equals(last);
-						}
-					});
-				}
-
-			}
-
-		});
-		return replayButton;
-	}
+	protected abstract Button getReplayButton(Button next, Button last);
 
 	private Button getSaveButton() {
 		// 添加按钮对象
@@ -445,106 +366,10 @@ public abstract class Board extends Stage {
 	}
 
 	// 创建悔棋按钮
-	private Button getRetractButton() {
-		// 添加按钮对象
-		Button retractButton = new Button("悔棋");
-		// 设置按钮大小
-		retractButton.setPrefSize(2 * padding, BottomMargin - margin);
-		// 设置位置
-		retractButton.setLayoutX(margin + 3 * padding);
-		retractButton.setLayoutY(side);
-		// 给按钮对象绑定click事件
-		retractButton.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				if (isWin || isReplay) {
-					return;
-				}
-				if (record.empty()) {
-					Alert alert = new Alert(AlertType.WARNING);
-					alert.setTitle("警告！");
-					alert.setHeaderText("错误！");
-					alert.setContentText("无棋可悔！");
-					alert.show();
-					return;
-				}
-				Pair<Integer, Integer> nowChessXY = record.pop();
-				// 删除所有当前位置的Circle对象
-				pane.getChildren().removeIf(new Predicate<Object>() {
-					@Override
-					public boolean test(Object t) {
-						if (t instanceof Circle) {
-							Circle toDelChess = (Circle) t;
-							if (nowChessXY.getKey().equals((int) toDelChess.getCenterX())
-									&& nowChessXY.getValue().equals((int) toDelChess.getCenterY()))
-								return true;
-							else
-								return false;
-						} else
-							return false;
-					}
-				});
-				chesses[(nowChessXY.getValue() - margin) / padding][(nowChessXY.getKey() - margin) / padding] = null;
-			}
-		});
-		return retractButton;
-	}
+	protected abstract Button getRetractButton();
 
 	// 创建重启按钮
-	private Button getRestartButton() {
-		// 添加按钮对象
-		Button startButton = new Button("重来");
-		// 设置按钮大小
-		startButton.setPrefSize(2 * padding, BottomMargin - margin);
-		// 设置位置
-		startButton.setLayoutX(margin);
-		startButton.setLayoutY(side);
-		// 给按钮对象绑定click事件
-		startButton.setOnAction(new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				if (isReplay)
-					return;
-				if (!isWin) {
-					// 弹框
-					Alert alert = new Alert(AlertType.CONFIRMATION);
-					// 设置文字说明
-					alert.setTitle("重来");
-					alert.setHeaderText("警告：");
-					alert.setContentText("当前对局尚未完成，确定要再来一局吗？");
-					// 展示弹框并获得结果
-					Optional<ButtonType> result = alert.showAndWait();
-					if (result.isPresent() && result.get() == ButtonType.CANCEL) {
-						return;
-					}
-				}
-				// 删除所有Circle对象
-				pane.getChildren().removeIf(new Predicate<Object>() {
-					@Override
-					public boolean test(Object t) {
-						if (t instanceof Circle) {
-							Circle star = (Circle) t;
-							if (star.getRadius() == starRadius)
-								return false;
-							else
-								return true;
-						} else
-							return false;
-					}
-				});
-				record.clear();
-				isWin = false;
-				// 无需清空，只需要重新新建就好了
-				chesses = new Chess[lineCount][lineCount];
-				/*
-				 * for (int i = 0; i < lineCount; i++)
-				 * for (int j = 0; j < lineCount; j++)
-				 * chesses[i][j] = null;
-				 */
-			}
-		});
-		return startButton;
-	}
+	protected abstract Button getRestartButton();
 
 	// 落子到棋盘
 	public void place(int _x, int _y) {

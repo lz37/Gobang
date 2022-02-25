@@ -3,7 +3,7 @@
  * @FilePath: /Gobang/src/IPInput.java
  * @Author: 零泽
  * @Date: 2022-02-22 22:04:20
- * @LastEditTime: 2022-02-24 23:23:57
+ * @LastEditTime: 2022-02-25 14:24:24
  * @LastEditors: 零泽
  * @Description: 
  */
@@ -12,8 +12,8 @@ import java.io.ObjectInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Optional;
-
 import GUI.ChessMessage;
+import GUI.ElseMessage;
 import GUI.Global;
 import GUI.OnlinePlay;
 import javafx.scene.control.ButtonType;
@@ -48,6 +48,8 @@ public class IPInput extends Stage {
   private TextField oppositePortInput = null;
   private Button OK = null;
   private Button quit = null;
+
+  OnlinePlay onlinePlay = null;
 
   public IPInput() {
     this.setOnCloseRequest(new EventHandler<WindowEvent>() {
@@ -118,42 +120,47 @@ public class IPInput extends Stage {
         Global.myPort = Integer.parseInt(myPortInput.getText());
         Global.oppositeIP = "localhost";
         Global.oppositePort = Integer.parseInt(oppositePortInput.getText());
-        OnlinePlay onlinePlay = new OnlinePlay();
+        onlinePlay = new OnlinePlay();
         onlinePlay.show();
         new Thread() {
           @Override
           public void run() {
             try {
-              ServerSocket serverSocket = new ServerSocket(Global.myPort);
-              while (true) {
-                Socket socket = serverSocket.accept();
-                ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
-                Object obj = input.readObject();
-                if (obj instanceof ChessMessage) {
-                  // 如果是棋子
-                  ChessMessage chessMessage = (ChessMessage) obj;
-                  onlinePlay.pushRecord(chessMessage.getX(), chessMessage.getY());
-                  onlinePlay.setCanPlace(true);
-                  onlinePlay.onlinePlace(chessMessage.getX(), chessMessage.getY());
-
-                  if (onlinePlay.isWin()) {
-                    // 弹框
-                    Alert alert = new Alert(AlertType.INFORMATION);
-                    // 设置文字说明
-                    alert.setTitle("胜利");
-                    alert.setHeaderText("恭喜！");
-                    alert.setContentText((onlinePlay.getRecordSize() % 2 == 1 ? "黑方" : "白方") +
-                        "胜利！");
-                    // 展示弹框
-                    alert.show();
-                    onlinePlay.setIsWin(true);
-                    return;
+              try (ServerSocket serverSocket = new ServerSocket(Global.myPort)) {
+                while (true) {
+                  Socket socket = serverSocket.accept();
+                  ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
+                  Object obj = input.readObject();
+                  if (obj instanceof ChessMessage) {
+                    // 如果是棋子
+                    ChessMessage chessMessage = (ChessMessage) obj;
+                    onlinePlay.pushRecord(chessMessage.getX(), chessMessage.getY());
+                    onlinePlay.setCanPlace(true);
+                    onlinePlay.onlinePlace(chessMessage.getX(), chessMessage.getY());
+                    if (onlinePlay.isWin()) {
+                      Platform.runLater(new Runnable() {
+                        @Override
+                        public void run() {
+                          // 弹框
+                          Alert alert = new Alert(AlertType.INFORMATION);
+                          // 设置文字说明
+                          alert.setTitle(Global.myIP + ":" + Global.myPort);
+                          alert.setHeaderText("恭喜！");
+                          alert.setContentText((onlinePlay.getRecordSize() % 2 == 1 ? "黑方" : "白方") +
+                              "胜利！");
+                          // 展示弹框
+                          alert.show();
+                        }
+                      });
+                      onlinePlay.setIsWin(true);
+                      return;
+                    }
+                  } else {
+                    // 如果不是棋子
+                    ElseMessage elseMessage = (ElseMessage) obj;
+                    dealElseMessage(elseMessage);
                   }
-                } else {
-                  // 如果不是棋子
-
                 }
-
               }
             } catch (Exception e) {
               e.printStackTrace();
@@ -177,4 +184,119 @@ public class IPInput extends Stage {
     this.setScene(new Scene(pane, textFieldX + textFieldLength + margin, oppositePortLabel.getLayoutY() + 2 * margin));
   }
 
+  private void dealElseMessage(ElseMessage elseMessage) {
+    switch (elseMessage) {
+      case Exit:
+        Platform.runLater(new Runnable() {
+          @Override
+          public void run() {
+            Alert alert = new Alert(AlertType.CONFIRMATION);
+            // 设置文字说明
+            alert.setTitle(Global.myIP + ":" + Global.myPort);
+            alert.setHeaderText("对方退出");
+            alert.setContentText((onlinePlay.getIsWin() ? "" : "您获得了胜利") + "，系统将自动退出");
+            // 展示弹框
+            alert.showAndWait();
+            onlinePlay.close();
+            // 必须放在run里
+            System.exit(0);
+          }
+        });
+        break;
+      case Retract:
+        Platform.runLater(new Runnable() {
+          @Override
+          public void run() {
+            Alert alert = new Alert(AlertType.CONFIRMATION);
+            // 设置文字说明
+            alert.setTitle(Global.myIP + ":" + Global.myPort);
+            alert.setHeaderText("对方:" + Global.oppositeIP + ":" + Global.oppositePort);
+            alert.setContentText("对方请求悔棋");
+            // 展示弹框并获得结果
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+              ElseMessage.sent(ElseMessage.RetractAgree);
+              Platform.runLater(new Runnable() {
+                @Override
+                public void run() {
+                  onlinePlay.deleteNowChess();
+                }
+              });
+            } else if (result.get() == ButtonType.CANCEL || result.get() == ButtonType.CLOSE) {
+              ElseMessage.sent(ElseMessage.RetractDisagree);
+            }
+          }
+        });
+        break;
+      case RetractAgree:
+        Platform.runLater(new Runnable() {
+          @Override
+          public void run() {
+            onlinePlay.deleteNowChess();
+          }
+        });
+        break;
+      case RetractDisagree:
+        Platform.runLater(new Runnable() {
+          @Override
+          public void run() {
+            Alert alert = new Alert(AlertType.INFORMATION);
+            // 设置文字说明
+            alert.setTitle(Global.myIP + ":" + Global.myPort);
+            alert.setHeaderText("对方:" + Global.oppositeIP + ":" + Global.oppositePort);
+            alert.setContentText("对方不同意悔棋");
+            alert.show();
+          }
+        });
+        break;
+      case Restart:
+        Platform.runLater(new Runnable() {
+          @Override
+          public void run() {
+            Alert alert = new Alert(AlertType.CONFIRMATION);
+            // 设置文字说明
+            alert.setTitle(Global.myIP + ":" + Global.myPort);
+            alert.setHeaderText("拒绝:" + Global.oppositeIP + ":" + Global.oppositePort);
+            alert.setContentText("对方请求重开");
+            // 展示弹框并获得结果
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+              ElseMessage.sent(ElseMessage.RestartAgree);
+              Platform.runLater(new Runnable() {
+                @Override
+                public void run() {
+                  onlinePlay.clearBoard();
+                }
+              });
+            } else if (result.get() == ButtonType.CANCEL || result.get() == ButtonType.CLOSE) {
+              ElseMessage.sent(ElseMessage.RestartDisagree);
+            }
+          }
+        });
+        break;
+      case RestartAgree:
+        Platform.runLater(new Runnable() {
+          @Override
+          public void run() {
+            onlinePlay.clearBoard();
+          }
+        });
+        break;
+      case RestartDisagree:
+        Platform.runLater(new Runnable() {
+          @Override
+          public void run() {
+            Alert alert = new Alert(AlertType.INFORMATION);
+            // 设置文字说明
+            alert.setTitle(Global.myIP + ":" + Global.myPort);
+            alert.setHeaderText("拒绝:" + Global.oppositeIP + ":" + Global.oppositePort);
+            alert.setContentText("对方不同意重来");
+            alert.show();
+          }
+        });
+        break;
+      default:
+        break;
+    }
+  }
 }
