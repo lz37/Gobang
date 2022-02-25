@@ -3,7 +3,7 @@
  * @FilePath: /Gobang/src/IPInput.java
  * @Author: 零泽
  * @Date: 2022-02-22 22:04:20
- * @LastEditTime: 2022-02-25 14:24:24
+ * @LastEditTime: 2022-02-25 20:41:42
  * @LastEditors: 零泽
  * @Description: 
  */
@@ -111,14 +111,9 @@ public class IPInput extends Stage {
     OK.setOnAction(new EventHandler<ActionEvent>() {
       @Override
       public void handle(ActionEvent event) {
-        // Global.myIP = myIPInput.getText();
-        // Global.myPort = Integer.parseInt(myPortInput.getText());
-        // Global.oppositeIP = oppositeIPInput.getText();
-        // Global.oppositePort = Integer.parseInt(oppositePortInput.getText());
-
-        Global.myIP = "localhost";
+        Global.myIP = myIPInput.getText();
         Global.myPort = Integer.parseInt(myPortInput.getText());
-        Global.oppositeIP = "localhost";
+        Global.oppositeIP = oppositeIPInput.getText();
         Global.oppositePort = Integer.parseInt(oppositePortInput.getText());
         onlinePlay = new OnlinePlay();
         onlinePlay.show();
